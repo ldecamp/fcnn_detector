@@ -1,0 +1,10 @@
+.DS_Store
+.vscode/
+
+*.py[cod]
+
+env/
+datasets/
+models/
+tensorlogs/
+output/
