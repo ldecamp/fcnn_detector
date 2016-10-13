@@ -4,6 +4,7 @@
 *.py[cod]
 
 env/
+tensorenv/
 datasets/
 models/
 tensorlogs/

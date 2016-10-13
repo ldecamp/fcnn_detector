@@ -86,7 +86,7 @@ def eval_dataset(params, epoch, iter_func, name):
     ds_acc = (ds_tp+ds_tn)/(ds_tp+ds_tn+ds_fn+ds_fp)
     ds_f1 = 0 if (ds_prec+ds_rec) == 0 else  2* (ds_prec*ds_rec) / (ds_prec+ds_rec)
     # Print stats
-    print("  {} loss:\t\t{:.4f} %".format(name, ds_err / ds_batches))
+    print("  {} loss:\t\t{:.6f} ".format(name, ds_err / ds_batches))
     print("  {} accuracy:\t\t{:.4f} %".format(name, 100 * ds_acc))
     print("  {} f1:\t\t{:.4f} %".format(name, 100 * ds_f1))
 
@@ -126,7 +126,9 @@ def train():
         y_eval = tf.arg_max(tf.nn.sigmoid(model(x)), 3)
 
     # Merge all the summaries and write them out to  output
-    merged = tf.merge_all_summaries()
+    merged_train = tf.merge_all_summaries()
+    merged_val = tf.merge_all_summaries()
+    merged_test = tf.merge_all_summaries()
 
     best_val_loss = 100
     best_val_f1 = 0.0
@@ -141,7 +143,7 @@ def train():
                 saver = tf.train.import_meta_graph(FLAGS.model_path + ".meta")
                 saver.restore(sess, FLAGS.model_path)
             else:
-                print("Could not find model at: {}. Training from scratch".format(FLAGS.model_path))
+                print("Could not find model at: {}! Training from scratch".format(FLAGS.model_path))
 
         train_writer = tf.train.SummaryWriter(FLAGS.summaries_dir + '/train', sess.graph)
         valid_writer = tf.train.SummaryWriter(FLAGS.summaries_dir + '/valid')
@@ -156,7 +158,7 @@ def train():
             start_time = time()
             # Go Over all the training data in each epoch
             for (dtrain, targets, _) in dataset.iterate_train_minibatch():
-                summary, err, _ = sess.run([merged, cross_entropy, train_step], 
+                summary, err, _ = sess.run([merged_train, cross_entropy, train_step], 
                                 feed_dict = {x: dtrain, y: targets})
                 train_err += err
                 train_batches += 1
@@ -172,7 +174,7 @@ def train():
                 'y': y,
                 'f_entropy': cross_entropy,
                 'writer': valid_writer,
-                'holder': merged,
+                'holder': merged_val,
                 'detector': detector
             }
             val_loss, val_f1 = eval_dataset(params, epoch, dataset.iterate_validation_minibatch, 'validation')
@@ -180,15 +182,19 @@ def train():
             if val_loss < best_val_loss:
                 print("New best validation loss {}".format(val_loss))
                 best_val_loss = val_loss
-
+                if best_val_f1 == 0.0:
+                    print("Saving Model.")
+                    model_saver.save(sess, FLAGS.model_path)
+            
             if val_f1 > best_val_f1:
-                print("New best validation f1 {}. Saving Model".format(val_loss))
+                print("New best validation f1 {}. Saving Model".format(val_f1))
                 best_val_f1 = val_f1
                 model_saver.save(sess, FLAGS.model_path)
                 
             # Every 10 iterations test
             if epoch % 10 == 0:
                 params['writer'] = test_writer
+                params['holder'] = merged_test
                 eval_dataset(params, epoch, dataset.iterate_test_minibatch, 'test')
         
         train_writer.close()
