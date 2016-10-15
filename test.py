@@ -42,7 +42,9 @@ def test():
     # Build Model
     with tf.name_scope('model'):
         model = model_builder.get_model()
-    
+        all_vars = model.get_variables()
+        loader = tf.train.Saver(all_vars)
+
     # Create prediction function
     with tf.name_scope('output'):
         y = tf.arg_max(tf.nn.sigmoid(model(x)), 3)
@@ -55,11 +57,10 @@ def test():
         sess.run(init_op)
 
         if os.path.exists(FLAGS.model_path):
-            print("Restoring model from last snapshot")
-            saver = tf.train.import_meta_graph(FLAGS.model_path + ".meta")
-            saver.restore(sess, FLAGS.model_path)
+            print("Restoring model from last snapshot {}".format(FLAGS.model_path))
+            loader.restore(sess, FLAGS.model_path)
         else:
-            print("Could not find model at: {}. Training from scratch".format(FLAGS.model_path))
+            print("Could not find model at: {}.".format(FLAGS.model_path))
             exit()
         
         for image in dataset.iterate_set((FLAGS.input_size, FLAGS.input_size, 1)):
@@ -77,7 +78,7 @@ def test():
     print("Average classification time in ms: {}".format(avg_t))
 
     # Write predictions into output csv file.
-    if not os.path.exists(FLAGS.pred_path):
+    if not os.path.exists(os.path.dirname(FLAGS.pred_path)):
         os.makedirs(os.path.dirname(FLAGS.pred_path))
     with open(FLAGS.pred_path, 'wb') as csvfile:
         pred_writer = csv.writer(csvfile, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
